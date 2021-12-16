@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31129.286
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "API", "API\API.csproj", "{03FD93B1-FF18-49AA-952C-DBFE99D1D3CF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core", "Core\Core.csproj", "{28CA2658-F36B-483F-86A3-5F62F3D15DAE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infrastructure", "Infrastructure\Infrastructure.csproj", "{55A4750F-6AD0-483B-BBCF-784FEB339DF4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{03FD93B1-FF18-49AA-952C-DBFE99D1D3CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03FD93B1-FF18-49AA-952C-DBFE99D1D3CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03FD93B1-FF18-49AA-952C-DBFE99D1D3CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03FD93B1-FF18-49AA-952C-DBFE99D1D3CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28CA2658-F36B-483F-86A3-5F62F3D15DAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28CA2658-F36B-483F-86A3-5F62F3D15DAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28CA2658-F36B-483F-86A3-5F62F3D15DAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28CA2658-F36B-483F-86A3-5F62F3D15DAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55A4750F-6AD0-483B-BBCF-784FEB339DF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55A4750F-6AD0-483B-BBCF-784FEB339DF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55A4750F-6AD0-483B-BBCF-784FEB339DF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55A4750F-6AD0-483B-BBCF-784FEB339DF4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F62F4C5E-1633-441B-B7E9-4DF95588763C}
+	EndGlobalSection
+EndGlobal
