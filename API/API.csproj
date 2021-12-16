@@ -8,6 +8,7 @@
     <Compile Remove="Controllers\AccountController.cs" />
     <Compile Remove="Controllers\LoginManager.cs" />
     <Compile Remove="Controllers\ServiceRequestController.cs" />
+    <Compile Remove="SrvManSecurityManager\SrvManSecurityManager.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,10 +28,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Errors\" />
     <Folder Include="Helpers\" />
-    <Folder Include="Middleware\" />
     <Folder Include="Specifications\" />
+    <Folder Include="SrvManSecurityManager\" />
     <Folder Include="Token\" />
   </ItemGroup>
 

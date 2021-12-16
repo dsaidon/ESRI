@@ -1,6 +1,7 @@
 ﻿using Core.Entities;
 using Infrastructure.Data;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Infrastructure.Utils
 {
@@ -12,36 +13,36 @@ namespace Infrastructure.Utils
             db = DbContext;
         }
 
-        public  int GetSiteParamInt(int paramId, int defaultValue)
+        public async Task<int> GetSiteParamInt(int paramId, int defaultValue)
         {
             //using (db)
             //{
                 SiteParam param = db.SiteParams.Where(p => p.Id == paramId).FirstOrDefault();
                 if (param == null)
-                    return defaultValue;
-                return param.intValue == null ? defaultValue : (int)param.intValue;
+                    return await Task.FromResult(defaultValue);
+            return await Task.FromResult(param.intValue == null ? defaultValue : (int)param.intValue);
             //}
         }
 
-        public  string GetSiteParamString(int paramId, string defaultValue)
+        public async Task<string> GetSiteParamString(int paramId, string defaultValue)
         {
             //using (db)
             //{
                 SiteParam param = db.SiteParams.Where(p => p.Id == paramId).FirstOrDefault();
                 if (param == null)
-                    return defaultValue;
-                return string.IsNullOrEmpty(param.stringValue) ? defaultValue : param.stringValue;
+                return await Task.FromResult(defaultValue);
+            return await Task.FromResult(string.IsNullOrEmpty(param.stringValue) ? defaultValue : param.stringValue);
             //}
         }
 
-        public  decimal GetSiteParamDecimal(int paramId, decimal defaultValue)
+        public async Task<decimal> GetSiteParamDecimal(int paramId, decimal defaultValue)
         {
             //using (db)
             //{
                 SiteParam param = db.SiteParams.Where(p => p.Id == paramId).FirstOrDefault();
                 if (param == null)
-                    return defaultValue;
-                return param.decimalValue == null ? defaultValue : (decimal)param.decimalValue;
+                return await Task.FromResult(defaultValue);
+            return await Task.FromResult(param.decimalValue == null ? defaultValue : (decimal)param.decimalValue);
             //}
         }
 

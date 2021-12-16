@@ -1,15 +1,14 @@
-﻿
-using API.SecurityManager;
+﻿using API.Errors;
 using Core.Dtos.Login;
 using Core.Interfaces.Auth;
 using Infrastructure.Data;
-using Infrastructure.Services.Auth;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 namespace API.Controllers
 {
@@ -54,50 +53,52 @@ namespace API.Controllers
         //}
 
         [HttpPost("LoginSrvMan")]
-        public IActionResult LoginSrvMan([FromBody] SrvManLoginCDto data)
+        public async Task<ActionResult<SrvManLoginDto>> LoginSrvMan([FromBody] SrvManLoginCDto data)
         {
             if (data == null)
             {
-                return BadRequest("Request body is incorrect (empty).");
+                return BadRequest(new ApiResponse(400,"Request body is incorrect (empty)."));
             }
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest("Request body is incorrect (empty).");
+                    return BadRequest(new ApiResponse(400, "Request body is not valis (empty)."));
 
                 }
                 Boolean retVal = false;
                 IActionResult ret = null;
                 SrvManLoginDto srvManLogin = new SrvManLoginDto();
                 //mgr responsible for ValidateSrvMan and get SrvMan Claims
-                SrvManSecurityManager mgr = new SrvManSecurityManager(_DbContext, srvManLogin, _auth, _tokenService);
+                //SrvManSecurityManager mgr = new SrvManSecurityManager(_DbContext, srvManLogin, _auth, _tokenService);
                 ////cLogin responsible for the login process get last login info and send SMS
                 
                 //LoginSrv cLogin = new LoginSrv(_configuration, _DbContext);
                 ////mgr --> Create JWT token form SrvMan
-                srvManLogin = (SrvManLoginDto)mgr.ValidateSrvMan(data.UserId);
+                srvManLogin = await (Task<SrvManLoginDto>)_loginSrv.ValidateSrvMan(data.UserId, srvManLogin, _auth, _tokenService);
                 if (srvManLogin.IsAuthenticated)
                 {
                     srvManLogin.IP = GetClientIP();
                     ////Write SrvMan Login Log and Define SrvMan Next Step
-                    retVal = _loginSrv.CheckAuthenticationDetails( srvManLogin);
+                    retVal = await _loginSrv.CheckAuthenticationDetails( srvManLogin);
                     ////return Ok(auth);
-                    ret = StatusCode(StatusCodes.Status200OK, srvManLogin);
+                   // ret = StatusCode(StatusCodes.Status200OK, srvManLogin);
                 }
                 else
                 {
-                    ret = StatusCode(StatusCodes.Status404NotFound, "מספר עובד לא נמצא במערכת");
+                    //ret = StatusCode(StatusCodes.Status404NotFound, "מספר עובד לא נמצא במערכת");
+                    return NotFound(new ApiResponse(404, "מספר עובד לא נמצא במערכת"));
                 }
 
-                return ret;
+                return await Task.FromResult(Ok(srvManLogin));
 
             }
             catch (Exception ex)
             {
                 var logger = _logger.CreateLogger<SrvManLoginDto>();
                 logger.LogError(ex.Message);
-                return StatusCode(StatusCodes.Status500InternalServerError, "השירות אינו זמין");
+                //return StatusCode(StatusCodes.Status500InternalServerError, "השירות אינו זמין");
+                return BadRequest(new ApiResponse(500, "השירות אינו זמין"));
             }
 
         }

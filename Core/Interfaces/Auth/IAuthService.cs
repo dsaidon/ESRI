@@ -15,6 +15,6 @@ namespace Core.Interfaces.Auth
         bool IsTokenValid(string token, IAuthContainerModel settings);
         IEnumerable<Claim> GetTokenClaims(string token);
 
-
+        
     }
 }

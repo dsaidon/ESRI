@@ -13,9 +13,12 @@ namespace API.SecurityManager
         private const int ecsSrvMan = 888;
         private const int ecsSupplierSrvMan = 999;
         private IAuthContainerModel _settings = null;
-        private SQLContext _DbContext = null;
+        private readonly IAuthService _tokenService;
         private SrvManLoginDto _auth = null;
-        private readonly IAuthService _tokenService ;
+
+        private SQLContext _DbContext = null;
+        
+        
 
         public SrvManSecurityManager(SQLContext context, SrvManLoginDto auth, IAuthService tokenService, IAuthContainerModel settings)
         {

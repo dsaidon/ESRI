@@ -5,27 +5,114 @@ using Core.Interfaces.Auth;
 using Core.Models.Auth;
 using Infrastructure.Data;
 using Infrastructure.Utils;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using ShagApi.Enums;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace Infrastructure.Services.Auth
 {
     public class LoginSrv: ILoginSrv
     {
+        private const int ecsSrvMan = 888;
+        private const int ecsSupplierSrvMan = 999;
         private readonly IConfiguration _configuration;
         private readonly SQLContext _DbContext;
         public LoginSrv(IConfiguration configuration, SQLContext context)
         {
             _DbContext = context;
             _configuration = configuration;
+            
+            
         }
-        public Boolean CheckAuthenticationDetails(SrvManLoginDto data)
+
+        public async Task<SrvManLoginDto> ValidateSrvMan(int SrvManId, SrvManLoginDto srvManLoginDto, IAuthService _tokenService, JWTContainerModel JWTsettings)
+        {
+
+            List<SrvMan> list = new List<SrvMan>();
+
+            try
+            {
+                list = _DbContext.SrvMan.Where (u => u.Id == SrvManId).ToList();
+
+                if (list.Count() > 0)
+                {
+                    srvManLoginDto = await BuildUserAuthObject(list[0], srvManLoginDto, _tokenService, JWTsettings);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    "Exception while trying to retrieve user.", ex);
+            }
+
+            return await Task.FromResult(srvManLoginDto);
+        }
+        private async Task<SrvManLoginDto> BuildUserAuthObject(SrvMan srvman, SrvManLoginDto srvManLoginDto, IAuthService _tokenService, JWTContainerModel JWTsettings)
+        {
+            Type _authType = srvManLoginDto.GetType();
+
+            // Set User Properties
+            srvManLoginDto.UserId = srvman.Id;
+            srvManLoginDto.UserName = srvman.FirstNm.ToString() + " " + srvman.LastNm.ToString();
+            srvManLoginDto.PhoneNo = srvman.PhoneNo;
+            srvManLoginDto.SrvManTp = srvman.SrvManTpId;
+            srvManLoginDto.IsAuthenticated = true;
+            if (srvman.SrvManTpId == 3)
+            {
+                srvManLoginDto.IsSupplier = true;
+            }
+
+
+            // Get all claims for this user
+            srvManLoginDto.Claims = await GetSrvManClaims(srvman.Id, srvManLoginDto.IsSupplier);
+
+            // Create JWT Bearer Token
+            //_auth.BearerToken = _tokenService.GenerateToken(_auth.Claims, _auth.UserName);
+            //_auth.BearerToken = _tokenService.CreateSrvManToken(_auth.Claims, _auth.UserName);
+            srvManLoginDto.BearerToken = _tokenService.GenerateToken(JWTsettings, srvManLoginDto);
+
+            return await Task.FromResult(srvManLoginDto);
+        }
+        private async Task<List<SrvManClaim>> GetSrvManClaims(int userId, bool IsSupplier)
+        {
+            int SrvManClaimId = -1;
+            if (IsSupplier == true)
+            {
+                SrvManClaimId = ecsSupplierSrvMan;
+            }
+            else
+            {
+                SrvManClaimId = ecsSrvMan; //Shagrir SrvMan
+            }
+
+            List<SrvManClaim> list = new List<SrvManClaim>();
+
+            try
+            {
+                
+                list =  _DbContext.SrvManClaims.Where(u => u.UserId == SrvManClaimId).ToList();
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    "Exception trying to retrieve user claims.", ex);
+            }
+
+            return await Task.FromResult(list);
+        }
+
+
+
+        public async Task<Boolean> CheckAuthenticationDetails(SrvManLoginDto data)
         {
             try
             {
@@ -33,16 +120,16 @@ namespace Infrastructure.Services.Auth
                 //{
                     LoginLog currentLogin;
                     //clsBLogin objLogin = new clsBLogin();
-                    currentLogin = GetCurrentLoginRecord(data);
-                    if (!string.IsNullOrWhiteSpace(data.IP) && !ValidateLoginAttemptsCount(data.IP))
+                    currentLogin = await GetCurrentLoginRecord(data);
+                    if (!string.IsNullOrWhiteSpace(data.IP) && await ValidateLoginAttemptsCount(data.IP)==false)
                     {
                         LockSrvMan(currentLogin);
                         currentLogin.lastUpdateDate = DateTime.Now;
                         data.Status = (int)AuthenticationStatusType.LockedUser;
                     //objLogin.UpdateLoginTbl(strConn, (int)AuthenticationStatusType.LockedUser, data.SessionId);
                     _DbContext.SaveChanges();
-                        
-                        return false;
+
+                        return await Task.FromResult(false);
                     }
                     //Check if user has validity cover id in Shagrir
                     if (data.UserId <= 0)
@@ -51,19 +138,19 @@ namespace Infrastructure.Services.Auth
                         data.Status = (int)AuthenticationStatusType.UserNotSubsecribed;
                     //objLogin.UpdateLoginTbl(strConn, (int)AuthenticationStatusType.UserNotSubsecribed, data.SessionId);
                     _DbContext.SaveChanges();
-                        return false;
+                        return await Task.FromResult(false);
                     }
                     //Check if locked user
-                    if (IsLocked( data))
+                    if (await IsLocked( data))
                     {
                         currentLogin.lastUpdateDate = DateTime.Now;
                         data.Status = (int)AuthenticationStatusType.LockedUser;
                     _DbContext.SaveChanges();
                         //objLogin.UpdateLoginTbl(strConn, (int)AuthenticationStatusType.LockedUser, data.SessionId);
-                        return false;
+                        return await Task.FromResult(false); 
                     }
 
-                    return true;
+                    return await Task.FromResult(true);
                 //}
             }
             catch (Exception ex)
@@ -162,12 +249,12 @@ namespace Infrastructure.Services.Auth
         //        return clsAuthCode;
         //    }
         //}
-        public LoginLog CheckIfLoginExists(SrvManLoginDto auth )
+        public async Task<LoginLog> CheckIfLoginExists(SrvManLoginDto auth )
 
         {
             LoginLog currentLogin;
-            currentLogin = GetCurrentLoginRecord(auth);
-            return currentLogin;
+            currentLogin = await GetCurrentLoginRecord(auth);
+            return await Task.FromResult(currentLogin);
         }
         //public LoginLogs GetLoginRecord( string sessionId)
         //{
@@ -181,19 +268,19 @@ namespace Infrastructure.Services.Auth
 
         //    return currentLogin;
         //}
-        public AuthCode SendSms( LoginLog data)
+        public async Task<AuthCode> SendSms( LoginLog data)
         {
 
 
 
-            return CreateNewAuthenticationCode( data);
+            return await CreateNewAuthenticationCode(data);
 
 
 
 
             //return true;
         }
-        public AuthCode CreateNewAuthenticationCode( LoginLog currentLogin)//, string licenseNumber)
+        public async Task<AuthCode> CreateNewAuthenticationCode( LoginLog currentLogin)//, string licenseNumber)
         {
             try
             {
@@ -218,7 +305,7 @@ namespace Infrastructure.Services.Auth
                 }
                 SiteParams wSiteParams = new SiteParams(_DbContext);
 
-                 iMaxRetries = wSiteParams.GetSiteParamInt((int)WebSiteParams.MaxRetries, 5);
+                 iMaxRetries = await wSiteParams.GetSiteParamInt((int)WebSiteParams.MaxRetries, 5);
                 if (currentLogin.smsCodeCounter >= iMaxRetries)
                 {
 
@@ -231,17 +318,17 @@ namespace Infrastructure.Services.Auth
                 {
                     //Valid user => send SMS
                     string code = string.Empty;
-                    bool isTestSrvMan = IsTestUser( currentLogin);
+                    bool isTestSrvMan = await IsTestUser( currentLogin);
 
                     if (isTestSrvMan || 1 == 1)
                     {
                         //return constant SMS No = 1234
-                        sTestUserAuthCode = wSiteParams.GetSiteParamString((int)WebSiteParams.TestUserAuthCode, "1234");
+                        sTestUserAuthCode = await wSiteParams.GetSiteParamString((int)WebSiteParams.TestUserAuthCode, "1234");
                         code = sTestUserAuthCode;
                     }
                     else
                     {
-                        iSmsAuthenticationCodeLength = wSiteParams.GetSiteParamInt((int)WebSiteParams.SmsAuthenticationCodeLength, 4);
+                        iSmsAuthenticationCodeLength = await wSiteParams.GetSiteParamInt((int)WebSiteParams.SmsAuthenticationCodeLength, 4);
                         code = RandomExtentions.CreateString(iSmsAuthenticationCodeLength);
                     }
 
@@ -249,7 +336,7 @@ namespace Infrastructure.Services.Auth
                     currentLogin.smsCodeCounter = currentLogin.smsCodeCounter == 0 ? 1 : (int)currentLogin.smsCodeCounter + 1;
                     currentLogin.smsCodeRetriesCounter = 0;
                     currentLogin.smsCreationDate = DateTime.Now;
-                    string strSmsMessageParam = wSiteParams.GetSiteParamString((int)WebSiteParams.SmsAuthenticationMessage, "");
+                    string strSmsMessageParam = await wSiteParams.GetSiteParamString((int)WebSiteParams.SmsAuthenticationMessage, "");
                     string strMessage = strSmsMessageParam != null ? strSmsMessageParam.Replace("@name@", currentLogin.SrvManName).Replace("@code@", code) : string.Format("שלום {0}\n לפניך קוד אימות עבור כניסה למערכת שגריר, אנא הזן את הקוד והמשך בתהליך \n קוד האימות: {1}", currentLogin.SrvManName, code);
 
                     if (isTestSrvMan || 1 == 1)
@@ -276,19 +363,19 @@ namespace Infrastructure.Services.Auth
                 clsAuthCode.nextStep = nextStep;
 
 
-                return clsAuthCode;
+                return await Task.FromResult(clsAuthCode);
             }
             catch (Exception ex)
             {
                 //logger.Error(string.Format("An error occurred on CreateNewAuthenticationCode {0}", JsonConvert.SerializeObject(ex)));
-              //  throw ex;
-                return null;
+                //  throw ex;
+                return await Task.FromResult<AuthCode>(null);
             }
 
 
         }
         //Check if we deal with testing app data
-        private bool IsTestUser( LoginLog loginLog)
+        private async Task<bool> IsTestUser( LoginLog loginLog)
         {
             
             int iTestSrvManNumber = 0;
@@ -296,13 +383,13 @@ namespace Infrastructure.Services.Auth
             //logger.Debug($"IsTestUser Validation: Paremeters send: licenseNum: {loginLog.licenseNum}, phone: {loginLog.phoneNum},name: {loginLog.SbcDetail.Sbc_name } ");
             bool res = true;
             SiteParams wSiteParams = new SiteParams(_DbContext);
-            iTestSrvManNumber = wSiteParams.GetSiteParamInt((int)WebSiteParams.TestLicenseNumber, 18);
+            iTestSrvManNumber =await wSiteParams.GetSiteParamInt((int)WebSiteParams.TestLicenseNumber, 18);
             if (loginLog.SrvManNo != iTestSrvManNumber)
-                return false;
-            sTestUserPhone = wSiteParams.GetSiteParamString((int)WebSiteParams.TestUserPhone, "0528320360");
+                return await Task.FromResult(false);
+            sTestUserPhone = await wSiteParams.GetSiteParamString((int)WebSiteParams.TestUserPhone, "0528320360");
             if (loginLog.phoneNo != sTestUserPhone && loginLog.SrvManNo != iTestSrvManNumber)
-                return false;
-            return res;
+                return await Task.FromResult(false);
+            return await Task.FromResult(res);
         }
         //public int BindLoginToProcess(string strConn, LoginLogs loginLog, ProcessStepType stepId, int procSts)
         //{
@@ -467,14 +554,14 @@ namespace Infrastructure.Services.Auth
         //GetCurrentLoginRecord need to be used only at login action
         //after login we will use the Token Auth
         //Login Count should start After SMS Identification attempt
-        private LoginLog GetCurrentLoginRecord(SrvManLoginDto data )
+        private async Task<LoginLog> GetCurrentLoginRecord(SrvManLoginDto data )
         {
             //LoginLog currentLogin;
             int intParam = 0;
             SiteParams wSiteParams = new SiteParams(_DbContext);
-            intParam = wSiteParams.GetSiteParamInt((int)WebSiteParams.AuthenticationSessionInterval, 15);
+            intParam = await wSiteParams.GetSiteParamInt((int)WebSiteParams.AuthenticationSessionInterval, 15);
             DateTime limitTime = DateTime.Now.AddMinutes(intParam * -1);
-                LoginLog currentLogin = _DbContext.LoginLogs.FirstOrDefault(s => s.SrvManNo == data.UserId
+                LoginLog currentLogin =await _DbContext.LoginLogs.FirstOrDefaultAsync(s => s.SrvManNo == data.UserId
                                                             && s.lastUpdateDate >= limitTime
                                                             && s.status == (int)AuthenticationStatusType.AuthenticationCreateLoginRow
                                                             && s.sessionId == data.SessionId);
@@ -509,13 +596,13 @@ namespace Infrastructure.Services.Auth
             currentLogin.isSupplier = data.IsSupplier;
             _DbContext.SaveChanges();
 
-            return currentLogin;
+            return await Task.FromResult( currentLogin);
         }
         public string GenerateSessionGuid()
         {
             return string.Concat(System.Guid.NewGuid(), System.Guid.NewGuid());
         }
-        private bool ValidateLoginAttemptsCount(string ip)
+        private async Task<bool> ValidateLoginAttemptsCount(string ip)
         {
             try
             {
@@ -523,16 +610,16 @@ namespace Infrastructure.Services.Auth
                 //{ 
 
                     SiteParams wSiteParams = new SiteParams(_DbContext);
-                    int limitPeriod = wSiteParams.GetSiteParamInt((int)WebSiteParams.LoginLimitPeriod, 1);
+                    int limitPeriod =await wSiteParams.GetSiteParamInt((int)WebSiteParams.LoginLimitPeriod, 1);
                     int LimitAttemptsCount = 0;
                     DateTime limitTime = DateTime.Now.AddMinutes(-limitPeriod);
 
                     var attemptsCountInLimitPeriod = _DbContext.LoginLogs.Where(i => i.ip == ip && i.creationDate >= limitTime).Count();
-                    LimitAttemptsCount= wSiteParams.GetSiteParamInt((int)WebSiteParams.LoginLimitAttemptsCount, 20);
+                    LimitAttemptsCount= await wSiteParams.GetSiteParamInt((int)WebSiteParams.LoginLimitAttemptsCount, 20);
                     if (attemptsCountInLimitPeriod > LimitAttemptsCount)
-                        return false;
+                        return await Task.FromResult(false);
                     else
-                        return true;
+                        return await Task.FromResult(true);
                 //}
 
 
@@ -541,7 +628,7 @@ namespace Infrastructure.Services.Auth
             {
                 //logger.Error($"ValidateLoginAttemptsCount - Failed to validate login attepts count limit for IP: {ip}", ex);
 
-                return false;
+                return await Task.FromResult(false);
             }
         }
         private void LockSrvMan(LoginLog currentLogin)
@@ -550,12 +637,12 @@ namespace Infrastructure.Services.Auth
                 _DbContext.LockedSrvMans.Add(new LockedSrvMan() { lockedSrvManNo = currentLogin.SrvManNo, SrvManNM= currentLogin.SrvManName, IsSupplier = currentLogin.isSupplier, lockedDate = DateTime.Now });
                 _DbContext.SaveChanges();
         }
-        private bool IsLocked(SrvManLoginDto data)
+        private async Task<bool> IsLocked(SrvManLoginDto data)
         {
             //logger.Debug(string.Format("start isLocked for licenseNumber: {0}, ip: {1}", data.licenseNumber, data.ip));
             SiteParams wSiteParams = new SiteParams(_DbContext);
 
-            int lockLicenseInterval = wSiteParams.GetSiteParamInt((int)WebSiteParams.LockLicenseInterval, 10);
+            int lockLicenseInterval =await wSiteParams.GetSiteParamInt((int)WebSiteParams.LockLicenseInterval, 10);
             DateTime limitTime = DateTime.Now.AddMinutes(lockLicenseInterval * -1);
             //bool isLocked = false;
 
@@ -563,18 +650,18 @@ namespace Infrastructure.Services.Auth
                 if (_DbContext.LockedSrvMans.Where(p => p.lockedSrvManNo == data.UserId && p.lockedDate > limitTime).Any())
                 {
                     //logger.Debug(string.Format("isLocked for licenseNumber: {0}, ip: {1}, isLicenseLocked: {2}", data.licenseNumber, data.ip, isLocked));
-                    return true;
+                    return await Task.FromResult(true);
                 }
 
                 //check if ip is locked
                 if (_DbContext.LockedIps.Where(p => p.ip == data.IP && p.lockedDate > limitTime).Any())
                 {
                    // logger.Debug(string.Format("isLocked for licenseNumber: {0}, ip: {1}, isIpLocked: {2}", data.licenseNumber, data.ip, isLocked));
-                    return true;
+                    return await Task.FromResult(true);
                 }
         
 
-            return false;
+            return await Task.FromResult(false);
         }
         //public LoginLogs GetUserLoginInfo( string SessionId)
         //{

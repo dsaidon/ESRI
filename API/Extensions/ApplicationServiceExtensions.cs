@@ -1,5 +1,7 @@
-﻿using Core.Interfaces.Auth;
+﻿using API.Errors;
+using Core.Interfaces.Auth;
 using Infrastructure.Services.Auth;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -13,26 +15,22 @@ namespace API.Extensions
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
             services.AddScoped<ILoginSrv, LoginSrv>();
-            
-            //services.AddScoped(typeof(IGenericRepository<>), (typeof(GenericRepository<>)));
-            //services.Configure<ApiBehaviorOptions>(options =>
-            //{
-            //    options.InvalidModelStateResponseFactory = actionContext =>
-            //    {
-            //        var errors = actionContext.ModelState
-            //            .Where(e => e.Value.Errors.Count > 0)
-            //            .SelectMany(x => x.Value.Errors)
-            //            .Select(x => x.ErrorMessage).ToArray();
+            services.Configure<ApiBehaviorOptions>(options =>
+            {
+                options.InvalidModelStateResponseFactory = actionContext =>
+                {
+                    var errors = actionContext.ModelState
+                        .Where(e => e.Value.Errors.Count > 0)
+                        .SelectMany(x => x.Value.Errors)
+                        .Select(x => x.ErrorMessage).ToArray();
 
-            //        var errorResponse = new ApiValidationErrorResponse
-            //        {
-            //            Errors = errors
-            //        };
-
-            //        return new BadRequestObjectResult(errorResponse);
-            //    };
-            //});
-
+                    var errorResponse = new ApiValidationErrorResponse
+                    {
+                        Errors = errors
+                    };
+                    return new BadRequestObjectResult(errorResponse);
+                };
+            });
             return services;
         }
     }

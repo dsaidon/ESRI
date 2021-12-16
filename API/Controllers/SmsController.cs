@@ -37,7 +37,7 @@ namespace API.Controllers
         [HttpPost]
         [Route("SendSms")]
         
-        public IActionResult SendSms([FromBody] SrvManLoginCDto data)
+        public async Task<IActionResult> SendSms([FromBody] SrvManLoginCDto data)
         {
             if (data == null)
             {
@@ -62,10 +62,10 @@ namespace API.Controllers
                         AuthCode clsAuthCode = new AuthCode(data.UserId);
                         if (!String.IsNullOrEmpty(data.SessionId) && !String.IsNullOrEmpty(data.PhoneNo))
                             {
-                                currentLogin = _loginSrv.CheckIfLoginExists( auth);
+                                currentLogin = await _loginSrv.CheckIfLoginExists(auth);
                                 if (currentLogin != null)
                                 {
-                                    clsAuthCode = _loginSrv.SendSms( currentLogin);
+                                    clsAuthCode = await _loginSrv.SendSms( currentLogin);
 
                                     return Created("api/sms/", clsAuthCode);
                                 }
