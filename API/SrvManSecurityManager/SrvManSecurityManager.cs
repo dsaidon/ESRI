@@ -1,6 +1,6 @@
-﻿using API.Token;
-using Core.Dtos.Login;
+﻿using Core.Dtos.Login;
 using Core.Entities;
+using Core.Interfaces.Auth;
 using Infrastructure.Data;
 using System;
 using System.Collections.Generic;
@@ -46,8 +46,6 @@ namespace API.SecurityManager
 
             return _auth;
         }
-
-
         protected SrvManLoginDto BuildUserAuthObject(SrvMan srvman)
         {
             Type _authType = _auth.GetType();
@@ -74,8 +72,6 @@ namespace API.SecurityManager
 
             return _auth;
         }
-
-
         protected List<SrvManClaim> GetSrvManClaims(int userId, bool IsSupplier)
         {
             int SrvManClaimId = -1;

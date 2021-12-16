@@ -1,5 +1,6 @@
 ﻿using Core.Dtos.Login;
 using Core.Entities;
+using Core.Interfaces.Auth;
 using Core.Models.Auth;
 using Infrastructure.Data;
 using Infrastructure.Services.Auth;
@@ -23,11 +24,14 @@ namespace API.Controllers
         private readonly IConfiguration _configuration;
         private readonly SQLContext _DbContext;
         private readonly ILoggerFactory _logger;
-        public SmsController(SQLContext context, ILoggerFactory loggerFactory, IConfiguration config)
+        private readonly ILoginSrv _loginSrv;
+        public SmsController(SQLContext context, ILoginSrv loginSrv, ILoggerFactory loggerFactory, IConfiguration config)
         {
             _configuration = config;
             _DbContext = context;
             _logger = loggerFactory;
+            _loginSrv = loginSrv;
+
         }
 
         [HttpPost]
@@ -45,7 +49,7 @@ namespace API.Controllers
                 {
                     return BadRequest(ModelState);
                 }
-                    LoginSrv cLogin = new LoginSrv(_configuration, _DbContext);
+                    //LoginSrv cLogin = new LoginSrv(_configuration, _DbContext);
                     SrvManLoginDto auth = new SrvManLoginDto();
                     LoginLog currentLogin;
                     if (data.IsAuthenticated)
@@ -58,10 +62,10 @@ namespace API.Controllers
                         AuthCode clsAuthCode = new AuthCode(data.UserId);
                         if (!String.IsNullOrEmpty(data.SessionId) && !String.IsNullOrEmpty(data.PhoneNo))
                             {
-                                currentLogin = cLogin.CheckIfLoginExists( auth);
+                                currentLogin = _loginSrv.CheckIfLoginExists( auth);
                                 if (currentLogin != null)
                                 {
-                                    clsAuthCode = cLogin.SendSms( currentLogin);
+                                    clsAuthCode = _loginSrv.SendSms( currentLogin);
 
                                     return Created("api/sms/", clsAuthCode);
                                 }

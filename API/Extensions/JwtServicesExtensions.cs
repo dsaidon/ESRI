@@ -1,11 +1,11 @@
-﻿using API.Token;
+﻿using Core.Interfaces.Auth;
+using Infrastructure.Services.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace API.Extensions
 {
@@ -17,8 +17,9 @@ namespace API.Extensions
             JWTContainerModel settings = GetJwtSettings(config);
             //// Create singleton of JwtSettings the problem with singleton is the thread safe subject
             services.AddSingleton<JWTContainerModel>(settings);
-            
+
             //when we request IAuthService in the controller constractor the api will do new JWTService(settings.SecretKey)
+            
             services.AddScoped<IAuthService>(sp => new JWTService(settings.SecretKey));
             //Set Authentication אימות כניסה/אימות טוקן
             ////////////////////////////////////////////////

@@ -1,4 +1,5 @@
 ﻿using Core.Dtos.Login;
+using Core.Interfaces.Auth;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -8,25 +9,22 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace API.Token
+namespace Infrastructure.Services.Auth
 {
     public class JWTService : IAuthService
     {
 
         public string SecretKey { get; set; }
-
         public JWTService(string secretKey)
         {
             SecretKey = secretKey;
         }
-
         public string GenerateToken(IAuthContainerModel model, SrvManLoginDto authEmp)
         {
 
             SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(model.SecretKey));
             // Create standard JWT claims
             List<Claim> jwtClaims = new List<Claim>();
-            //jwtClaims.Add(new Claim(JwtRegisteredClaimNames.Sub,authEmp.userName));
             jwtClaims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
             // Add custom claims 
             //###/##/ use canAccessSupplier just like it define in angular dont use CanAccessSupplier
@@ -35,17 +33,13 @@ namespace API.Token
             {
                 jwtClaims.Add(new Claim(claim.ClaimType, claim.ClaimValue));
             }
-
-            //if (model == null || model.Claims == null || model.Claims.Length == 0)
             if (model == null)
                 throw new ArgumentException("Arguments to create token are not valid.");
 
             SecurityTokenDescriptor securityTokenDescriptor = new SecurityTokenDescriptor
             {
-                //Subject = new ClaimsIdentity(model.Claims),
                 Subject = new ClaimsIdentity(jwtClaims),
                 Expires = DateTime.UtcNow.AddMinutes(Convert.ToInt32(model.ExpireMinutes)),
-                //SigningCredentials = new SigningCredentials(GetSymmetricSecurityKey(), model.SecurityAlgorithm),
                 SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
                 Issuer = model.Issuer,//  "ShagrirIdentityProvider",
                 Audience = model.Audience,// "InventoryAPI",
@@ -74,14 +68,11 @@ namespace API.Token
             {
                 jwtClaims.Add(new Claim(claim.ClaimType, claim.ClaimValue));
             }
-
-            //if (model == null || model.Claims == null || model.Claims.Length == 0)
             if (model == null)
                 throw new ArgumentException("Arguments to create token are not valid.");
 
             SecurityTokenDescriptor securityTokenDescriptor = new SecurityTokenDescriptor
             {
-                //Subject = new ClaimsIdentity(model.Claims),
                 Subject = new ClaimsIdentity(jwtClaims),
                 Expires = DateTime.UtcNow.AddMinutes(Convert.ToInt32(model.ExpireMinutes)),
                 SigningCredentials = new SigningCredentials(GetSymmetricSecurityKey(), model.SecurityAlgorithm),
@@ -135,7 +126,6 @@ namespace API.Token
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
                 ClockSkew = TimeSpan.FromMinutes(settings.MinutesToExpiration),
-                //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.SecretKey)),
                 IssuerSigningKey = GetSymmetricSecurityKey()
             };
         }

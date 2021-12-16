@@ -5,7 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace API.Token
+namespace Core.Interfaces.Auth
 {
     public interface IAuthContainerModel
     {

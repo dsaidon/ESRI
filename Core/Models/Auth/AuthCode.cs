@@ -7,6 +7,8 @@ namespace Core.Models.Auth
 {
     public class AuthCode
     {
+      
+
         public AuthCode(long SrvManNo) : base()
         {
             //ErrID = false;

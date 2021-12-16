@@ -1,7 +1,9 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿
+using Core.Interfaces.Auth;
+using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 
-namespace API.Token
+namespace Core.Interfaces.Auth
 {
     public class JWTContainerModel : IAuthContainerModel
     {

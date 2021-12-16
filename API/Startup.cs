@@ -47,7 +47,7 @@ namespace API
             //});
             //Set App services
             services.AddJwtServices(_config);
-            //services.AddApplicationServices();
+            services.AddApplicationServices();
             //services.AddIdentityServices(_config);
             services.AddSwaggerDocumentation();
         }

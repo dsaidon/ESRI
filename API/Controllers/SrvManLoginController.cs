@@ -1,12 +1,9 @@
 ﻿
 using API.SecurityManager;
-using API.Token;
 using Core.Dtos.Login;
-using IdentityServer4.AccessTokenValidation;
+using Core.Interfaces.Auth;
 using Infrastructure.Data;
 using Infrastructure.Services.Auth;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,10 +21,12 @@ namespace API.Controllers
         private readonly SQLContext _DbContext;
         private readonly IAuthService _auth;
         private readonly ILoggerFactory _logger;
-        public SrvManLoginController(SQLContext context, JWTContainerModel tokenService, IAuthService auth, IConfiguration config, ILoggerFactory loggerFactory)
+        private readonly ILoginSrv _loginSrv;
+        public SrvManLoginController(SQLContext context, JWTContainerModel tokenService, IAuthService auth,ILoginSrv loginSrv, IConfiguration config, ILoggerFactory loggerFactory)
         {
             _configuration = config;
             _auth = auth;
+            _loginSrv = loginSrv;
             _tokenService = tokenService;
             _DbContext = context;
             _logger = loggerFactory;
@@ -68,20 +67,21 @@ namespace API.Controllers
                     return BadRequest("Request body is incorrect (empty).");
 
                 }
-              Boolean retVal = false;
+                Boolean retVal = false;
                 IActionResult ret = null;
                 SrvManLoginDto srvManLogin = new SrvManLoginDto();
                 //mgr responsible for ValidateSrvMan and get SrvMan Claims
                 SrvManSecurityManager mgr = new SrvManSecurityManager(_DbContext, srvManLogin, _auth, _tokenService);
                 ////cLogin responsible for the login process get last login info and send SMS
-                LoginSrv cLogin = new LoginSrv(_configuration, _DbContext);
+                
+                //LoginSrv cLogin = new LoginSrv(_configuration, _DbContext);
                 ////mgr --> Create JWT token form SrvMan
                 srvManLogin = (SrvManLoginDto)mgr.ValidateSrvMan(data.UserId);
                 if (srvManLogin.IsAuthenticated)
                 {
                     srvManLogin.IP = GetClientIP();
                     ////Write SrvMan Login Log and Define SrvMan Next Step
-                    retVal = cLogin.CheckAuthenticationDetails( srvManLogin);
+                    retVal = _loginSrv.CheckAuthenticationDetails( srvManLogin);
                     ////return Ok(auth);
                     ret = StatusCode(StatusCodes.Status200OK, srvManLogin);
                 }

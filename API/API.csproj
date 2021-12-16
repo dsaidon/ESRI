@@ -31,6 +31,7 @@
     <Folder Include="Helpers\" />
     <Folder Include="Middleware\" />
     <Folder Include="Specifications\" />
+    <Folder Include="Token\" />
   </ItemGroup>
 
 </Project>

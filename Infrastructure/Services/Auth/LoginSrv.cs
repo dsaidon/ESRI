@@ -1,6 +1,7 @@
 ﻿using Core.Dtos.Login;
 using Core.Entities;
 using Core.Enums;
+using Core.Interfaces.Auth;
 using Core.Models.Auth;
 using Infrastructure.Data;
 using Infrastructure.Utils;
@@ -15,7 +16,7 @@ using System.Xml.Linq;
 
 namespace Infrastructure.Services.Auth
 {
-    public class LoginSrv
+    public class LoginSrv: ILoginSrv
     {
         private readonly IConfiguration _configuration;
         private readonly SQLContext _DbContext;
@@ -67,7 +68,9 @@ namespace Infrastructure.Services.Auth
             }
             catch (Exception ex)
             {
-
+                //var logger = _logger.CreateLogger<SrvManLoginDto>();
+                //logger.LogError(ex.Message);
+                //return StatusCode(StatusCodes.Status500InternalServerError, "השירות אינו זמין");
                 return false;
 
             }
@@ -159,7 +162,6 @@ namespace Infrastructure.Services.Auth
         //        return clsAuthCode;
         //    }
         //}
-        
         public LoginLog CheckIfLoginExists(SrvManLoginDto auth )
 
         {
@@ -167,7 +169,6 @@ namespace Infrastructure.Services.Auth
             currentLogin = GetCurrentLoginRecord(auth);
             return currentLogin;
         }
-
         //public LoginLogs GetLoginRecord( string sessionId)
         //{
         //    LoginLogs currentLogin;
@@ -201,7 +202,7 @@ namespace Infrastructure.Services.Auth
                 //LoginLog currentLogin;
                 //clsBLogin objLogin = new clsBLogin();
                 //string code = string.Empty;
-                Boolean retVal = false;
+               //Boolean retVal = false;
                 int nextStep = -1;
                 int iMaxRetries = 0;
                 int iSmsAuthenticationCodeLength = 0;
@@ -280,7 +281,8 @@ namespace Infrastructure.Services.Auth
             catch (Exception ex)
             {
                 //logger.Error(string.Format("An error occurred on CreateNewAuthenticationCode {0}", JsonConvert.SerializeObject(ex)));
-                throw ex;
+              //  throw ex;
+                return null;
             }
 
 
@@ -416,7 +418,6 @@ namespace Infrastructure.Services.Auth
             int.TryParse(resultObj.Element("Status").Value, out intResult);
             return intResult;
         }
-
         private static string PostDataToURL(string szUrl, string szData)
         {
             //Setup the web request
@@ -514,7 +515,6 @@ namespace Infrastructure.Services.Auth
         {
             return string.Concat(System.Guid.NewGuid(), System.Guid.NewGuid());
         }
-
         private bool ValidateLoginAttemptsCount(string ip)
         {
             try
@@ -544,14 +544,13 @@ namespace Infrastructure.Services.Auth
                 return false;
             }
         }
-             private void LockSrvMan(LoginLog currentLogin)
+        private void LockSrvMan(LoginLog currentLogin)
         {
                 //logger.Debug(string.Format("start lockLicense for license number: {0}", licenseNum));
                 _DbContext.LockedSrvMans.Add(new LockedSrvMan() { lockedSrvManNo = currentLogin.SrvManNo, SrvManNM= currentLogin.SrvManName, IsSupplier = currentLogin.isSupplier, lockedDate = DateTime.Now });
                 _DbContext.SaveChanges();
         }
-
-           private bool IsLocked(SrvManLoginDto data)
+        private bool IsLocked(SrvManLoginDto data)
         {
             //logger.Debug(string.Format("start isLocked for licenseNumber: {0}, ip: {1}", data.licenseNumber, data.ip));
             SiteParams wSiteParams = new SiteParams(_DbContext);
@@ -577,8 +576,6 @@ namespace Infrastructure.Services.Auth
 
             return false;
         }
-
-
         //public LoginLogs GetUserLoginInfo( string SessionId)
         //{
         //    LoginLogs currentLogin;
@@ -651,7 +648,5 @@ namespace Infrastructure.Services.Auth
         //    return retVal;
 
         //}
-
-
     }
 }
