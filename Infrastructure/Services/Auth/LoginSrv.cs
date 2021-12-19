@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using ShagApi.Enums;
 using System;
 using System.Collections.Generic;
+
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -32,7 +33,6 @@ namespace Infrastructure.Services.Auth
             
             
         }
-
         public async Task<SrvManLoginDto> ValidateSrvMan(int SrvManId, SrvManLoginDto srvManLoginDto, IAuthService _tokenService, JWTContainerModel JWTsettings)
         {
 
@@ -109,9 +109,6 @@ namespace Infrastructure.Services.Auth
 
             return await Task.FromResult(list);
         }
-
-
-
         public async Task<Boolean> CheckAuthenticationDetails(SrvManLoginDto data)
         {
             try
@@ -162,112 +159,103 @@ namespace Infrastructure.Services.Auth
 
             }
         }
-        //public AuthCode CheckAuthenticationCode( SmsAuth data)
+        public async Task<AuthCode> CheckSmsAuthenticationCode(SmsAuth data)
+        {
+            AuthCode clsAuthCode = new AuthCode(data.srvManNo);
+            try
+            {
+                //Boolean retVal = false;
+                int iSmsExperationInterval = 0;
+                DateTime dtExperationDate;
+                clsAuthCode.nextStep = 0;
+                if (string.IsNullOrEmpty(data.smsCode))
+                {
+                    clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.EmptySmsCode;
+                    return clsAuthCode;
+                }
+                SiteParams wSiteParams = new SiteParams(_DbContext);
+
+                LoginLog currentLogin;
+                //No need to check SmsCode get cueent rec acording to SessionId check SmsCode later
+                currentLogin = await _DbContext.LoginLogs.FirstOrDefaultAsync(p => p.sessionId == data.sessionId);
+                if (currentLogin==null )
+                {
+                    clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.NotOnSmsCodeStatus;
+                    return clsAuthCode;
+                }
+                else
+                {
+                    iSmsExperationInterval = await wSiteParams.GetSiteParamInt((int)WebSiteParams.SmsExperationInterval, 360);
+                    if (iSmsExperationInterval == 0) iSmsExperationInterval = 2;
+                    dtExperationDate = DateTime.Now.AddMinutes(iSmsExperationInterval * -1);
+
+                    if (currentLogin.smsCreationDate < dtExperationDate)
+                    {
+                        //logger.Debug(string.Format("CheckAuthenticationCode: CodeExpired {{ sessionId: {0}, authenticationCode: {1}, lastUpdateDate: {2} }}", sessionId, authenticationCode, loginLog.lastUpdateDate));
+                        clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.CodeExpired;
+                        return clsAuthCode;
+                    }
+
+                    currentLogin.smsCodeRetriesCounter = currentLogin.smsCodeRetriesCounter == 0 ? 1 : currentLogin.smsCodeRetriesCounter + 1;//increace smsCodeRetriesCounter
+                    //Check the return login rec against smsCode
+                    if (currentLogin.smsCode != data.smsCode)
+                    {
+                        if (currentLogin.smsCodeRetriesCounter < 3)
+                        {
+                            await _DbContext.SaveChangesAsync();
+                            clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.WrongCode;
+                            return clsAuthCode;
+                        }
+                        else
+                        {
+                            await _DbContext.SaveChangesAsync();
+                            //ToDo
+                            clsAuthCode = await CreateNewAuthenticationCode(currentLogin);
+                            clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.ReSendNewSmsCode;
+                            return clsAuthCode;
+                        }
+                    }
+                    currentLogin.status = (int)AuthenticationStatusType.AuthenticationPassed;
+                    currentLogin.lastUpdateDate = DateTime.Now;
+                    //iSmsExperationInterval = await wSiteParams.GetSiteParamInt((int)WebSiteParams.SmsExperationInterval, 360);
+                    //DateTime experationDate = DateTime.Now.AddMinutes(iSmsExperationInterval * -1);
+                    //objLogin.UpdateLoginTbl(strConn, (int)AuthenticationStatusType.AuthenticationPassed, data.sessionId);
+                    //clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.AuthenticationPassed;
+                    Proc process =await BindLoginToProcess(currentLogin);
+                    ProcessStepType processStep = await BindProcessStep(process);
+                    clsAuthCode.nextStep = (int)processStep;
+                    await _DbContext.SaveChangesAsync();
+                    return clsAuthCode;
+                }
+                //return SmsCodeStatusType.NotOnSmsCodeStatus;
+            }
+
+            catch (Exception ex)
+            {
+                clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.NotOnSmsCodeStatus;
+                return clsAuthCode;
+            }
+        }
+
+        //private async Task<bool> UpdateLoginTblSmsTry(int smsCodeRetriesCounter,string sessionId)
         //{
-        //    AuthCode clsAuthCode = new AuthCode(data.srvManNo);
-        //    try
-        //    {
-        //        //LoginLogs currentLogin;
-        //        //clsBLogin objLogin = new clsBLogin();
-        //        //clsUtil ObjUtil = new clsUtil();
-        //        Boolean retVal = false;
-        //        int iSmsExperationInterval = 0;
-        //        DateTime dtExperationDate;
-        //        clsAuthCode.nextStep = 0;
-        //        if (string.IsNullOrEmpty(data.smsCode))
-        //        {
-        //            clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.EmptySmsCode;
-        //            return clsAuthCode;
-        //        }
-        //        SiteParams wSiteParams = new SiteParams(_DbContext);
 
-                
-        //        currentLogin = GetLoginRecord(strConn, data.sessionId);
-
-        //        if (currentLogin.ErrID)
-        //        {
-        //            clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.LoginNotFound;
-        //            return clsAuthCode;
-        //        }
-        //        else
-        //        {
-        //            iSmsExperationInterval = wSiteParams.GetSiteParamInt((int)WebSiteParams.SmsExperationInterval, 360);
-        //            if (iSmsExperationInterval == 0) iSmsExperationInterval = 2;
-        //            dtExperationDate = DateTime.Now.AddMinutes(iSmsExperationInterval * -1);
-
-        //            if (currentLogin.smsCreationDate < dtExperationDate)
-        //            {
-        //                //logger.Debug(string.Format("CheckAuthenticationCode: CodeExpired {{ sessionId: {0}, authenticationCode: {1}, lastUpdateDate: {2} }}", sessionId, authenticationCode, loginLog.lastUpdateDate));
-        //                clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.CodeExpired;
-        //                return clsAuthCode;
-        //            }
-
-
-        //            currentLogin.smsCodeRetriesCounter = currentLogin.smsCodeRetriesCounter == 0 ? 1 : currentLogin.smsCodeRetriesCounter + 1;//increace smsCodeRetriesCounter
-        //            if (currentLogin.smsCode != data.smsCode)
-        //            {
-        //                objLogin.UpdateLoginTblSmsTry(strConn, currentLogin.smsCodeRetriesCounter, data.sessionId);
-        //                if (currentLogin.smsCodeRetriesCounter < 3)
-        //                {
-        //                    clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.WrongCode;
-        //                    return clsAuthCode;
-        //                }
-        //                else
-        //                {
-
-        //                    clsAuthCode = CreateNewAuthenticationCode(strConn, currentLogin);
-        //                    clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.ReSendNewSmsCode;
-        //                    return clsAuthCode;
-        //                }
-        //            }
-
-
-        //            //logger.Debug(string.Format("CheckAuthenticationCode: passed {{ sessionId: {0}, authenticationCode: {1} }}", sessionId, authenticationCode));
-        //            //objLogin.UpdateLoginTbl(strConn, (int)AuthenticationStatusType.AuthenticationPassed, data.SessionId);
-        //            retVal = objLogin.CheckSmsCode(strConn, data.sessionId, data.smsCode);
-
-
-        //            iSmsExperationInterval = wSiteParams.GetSiteParamInt((int)WebSiteParams.SmsExperationInterval, 360);
-        //            DateTime experationDate = DateTime.Now.AddMinutes(iSmsExperationInterval * -1);
-
-
-        //            objLogin.UpdateLoginTbl(strConn, (int)AuthenticationStatusType.AuthenticationPassed, data.sessionId);
-        //            clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.AuthenticationPassed;
-        //            clsAuthCode.nextStep = BindLoginToProcess(strConn, currentLogin, ProcessStepType.Login, 1);
-        //            return clsAuthCode;
-
-        //        }
-
-        //        //return SmsCodeStatusType.NotOnSmsCodeStatus;
-
-
-        //    }
-
-        //    catch (Exception ex)
-        //    {
-        //        clsAuthCode.SmsCodeStatusType = (int)SmsCodeStatusType.NotOnSmsCodeStatus;
-        //        return clsAuthCode;
-        //    }
         //}
-        public async Task<LoginLog> CheckIfLoginExists(SrvManLoginDto auth )
 
+        public async Task<LoginLog> CheckIfLoginExists(SrvManLoginDto auth )
         {
             LoginLog currentLogin;
             currentLogin = await GetCurrentLoginRecord(auth);
             return await Task.FromResult(currentLogin);
         }
-        //public LoginLogs GetLoginRecord( string sessionId)
-        //{
-        //    LoginLogs currentLogin;
-        //    clsBLogin objLogin = new clsBLogin();
-
-
-        //    currentLogin = objLogin.GetLoginRecord(strConn, sessionId);
-
-
-
-        //    return currentLogin;
-        //}
+        public async Task<LoginLog> GetLoginRecord(string sessionId)
+        {
+            LoginLog currentLogin;
+            //clsBLogin objLogin = new clsBLogin();
+            // currentLogin = objLogin.GetLoginRecord(strConn, sessionId);
+            currentLogin = await _DbContext.LoginLogs.FirstOrDefaultAsync(p => p.sessionId == sessionId);
+            return currentLogin;
+        }
         public async Task<AuthCode> SendSms( LoginLog data)
         {
 
@@ -284,19 +272,14 @@ namespace Infrastructure.Services.Auth
         {
             try
             {
-                //logger.Debug(string.Format("start CreateNewAuthenticationCode {{sessionId: {0} }}", sessionId));
+                
                 SmsCodeStatusType status;
-                //LoginLog currentLogin;
-                //clsBLogin objLogin = new clsBLogin();
-                //string code = string.Empty;
-               //Boolean retVal = false;
                 int nextStep = -1;
                 int iMaxRetries = 0;
                 int iSmsAuthenticationCodeLength = 0;
                 string sTestUserAuthCode = "";
                 AuthCode clsAuthCode = new AuthCode(currentLogin.SrvManNo);
                 clsAuthCode.nextStep = 0;
-
                 if ( currentLogin.status != (int)AuthenticationStatusType.AuthenticationCreateLoginRow)
                 {
                     //logger.Debug(string.Format("End CreateNewAuthenticationCode with SmsCodeStatusType.NotOnSmsCodeStatus {{sessionId: {0} }}", sessionId));
@@ -304,22 +287,18 @@ namespace Infrastructure.Services.Auth
                     return clsAuthCode;
                 }
                 SiteParams wSiteParams = new SiteParams(_DbContext);
-
-                 iMaxRetries = await wSiteParams.GetSiteParamInt((int)WebSiteParams.MaxRetries, 5);
+                iMaxRetries = await wSiteParams.GetSiteParamInt((int)WebSiteParams.MaxRetries, 5);
                 if (currentLogin.smsCodeCounter >= iMaxRetries)
                 {
-
                     currentLogin.status = (int)AuthenticationStatusType.LockedUser;
                     LockSrvMan(currentLogin);
                     status = SmsCodeStatusType.OverMaxRetries;
                 }
-
                 else
                 {
                     //Valid user => send SMS
                     string code = string.Empty;
                     bool isTestSrvMan = await IsTestUser( currentLogin);
-
                     if (isTestSrvMan || 1 == 1)
                     {
                         //return constant SMS No = 1234
@@ -331,14 +310,12 @@ namespace Infrastructure.Services.Auth
                         iSmsAuthenticationCodeLength = await wSiteParams.GetSiteParamInt((int)WebSiteParams.SmsAuthenticationCodeLength, 4);
                         code = RandomExtentions.CreateString(iSmsAuthenticationCodeLength);
                     }
-
                     currentLogin.smsCode = code;
                     currentLogin.smsCodeCounter = currentLogin.smsCodeCounter == 0 ? 1 : (int)currentLogin.smsCodeCounter + 1;
                     currentLogin.smsCodeRetriesCounter = 0;
                     currentLogin.smsCreationDate = DateTime.Now;
                     string strSmsMessageParam = await wSiteParams.GetSiteParamString((int)WebSiteParams.SmsAuthenticationMessage, "");
                     string strMessage = strSmsMessageParam != null ? strSmsMessageParam.Replace("@name@", currentLogin.SrvManName).Replace("@code@", code) : string.Format("שלום {0}\n לפניך קוד אימות עבור כניסה למערכת שגריר, אנא הזן את הקוד והמשך בתהליך \n קוד האימות: {1}", currentLogin.SrvManName, code);
-
                     if (isTestSrvMan || 1 == 1)
                     {
                         status = SmsCodeStatusType.SentNewCode;
@@ -351,7 +328,6 @@ namespace Infrastructure.Services.Auth
                         else
                             status = SmsCodeStatusType.ErrorOnSendingCodeSms;
                     }
-
                 }
                 currentLogin.lastUpdateDate = DateTime.Now;
                 _DbContext.SaveChanges();
@@ -391,24 +367,57 @@ namespace Infrastructure.Services.Auth
                 return await Task.FromResult(false);
             return await Task.FromResult(res);
         }
-        //public int BindLoginToProcess(string strConn, LoginLogs loginLog, ProcessStepType stepId, int procSts)
-        //{
-        //    //logger.Debug(string.Format("BindLoginToProcess start {{ loginLog:{0}, sbcVld:{1} }}", loginLog.loginId, sbcVld));
-        //    clsBLogin objLogin = new clsBLogin();
-        //    //string code = string.Empty;
-        //    Boolean retVal = false;
-        //    long lngProccessId = 0;
-        //    ProcessStepType intStep = ProcessStepType.Login;
-        //    int intCurrentStep = -1;
+        private async Task<Proc> BindLoginToProcess(LoginLog currentLogin)
+        {
+           // Boolean retVal = false;
+            //long lngProccessId = 0;
+            ProcessStepType intStep = ProcessStepType.Login;
+           // int intCurrentStep = -1;
+            Proc process = null;
 
-        //    lngProccessId = objLogin.GetProccessId(strConn, loginLog.loginId);
-        //    intCurrentStep = objLogin.GetProccessCurrentStep(strConn, loginLog.loginId);
+            process = await _DbContext.Process.OrderByDescending(p => p.creationDate).FirstOrDefaultAsync(p => p.SrvManNo == currentLogin.SrvManNo);
+            if (process == null)
+            {
+                Proc newProcess = new Proc();
+                await _DbContext.Process.AddAsync(newProcess);
+                newProcess.creationDate = DateTime.Now;
+                newProcess.lastUpdateDate = DateTime.Now;
+                newProcess.lastLoginId = currentLogin.Id;
+                newProcess.SrvManNo = currentLogin.SrvManNo;
+                newProcess.SrvManNM = currentLogin.SrvManName;
+                newProcess.IsSupplier = currentLogin.isSupplier;
+                newProcess.step = (int)ProcessStepType.None;
+                newProcess.confirmation_isUserApproveCondiotions = true;
+                await _DbContext.SaveChangesAsync();
+                return await Task.FromResult(newProcess);
+
+            }
+            else { 
+                process.creationDate = DateTime.Now;
+                process.lastUpdateDate = DateTime.Now;
+                process.lastLoginId = currentLogin.Id;
+                process.SrvManNo = currentLogin.SrvManNo;
+                process.SrvManNM = currentLogin.SrvManName;
+                process.IsSupplier = currentLogin.isSupplier;
+                    //process.step = (int)ProcessStepType.Login;
+                //if (process.status == 0 && process.confirmation_isUserApproveCondiotions != true)
+                //    process.status = 4;
+                await _DbContext.SaveChangesAsync();
+                return await Task.FromResult(process);
+            }
+            
+            
+        }
+
+       
+        //lngProccessId = objLogin.GetProccessId(strConn, currentLogin.Id);
+        //    intCurrentStep = objLogin.GetProccessCurrentStep(strConn, currentLogin.Id);
         //    if (intCurrentStep == (int)ProcessStepType.Login || intCurrentStep == 0)
         //    {
         //        //(int)ProcessStepType.None
         //        intStep = ProcessStepType.Emp_attn;
         //        intCurrentStep = (int)intStep;
-        //        retVal = objLogin.CreateProccessId(strConn, loginLog, intCurrentStep);
+        //        retVal = objLogin.CreateProccessId(strConn, currentLogin, intCurrentStep);
         //    }
         //    else
         //    {
@@ -469,7 +478,116 @@ namespace Infrastructure.Services.Auth
 
         //    return (int)intStep;
 
-        //}
+    //}
+        private async Task<ProcessStepType> BindProcessStep(Proc process)
+    {
+            ProcessStepType step = (ProcessStepType)process.step;
+            int intCurrentStep = (int)step;
+            long lngProccessId = 0;
+            lngProccessId = process.Id;
+            ProcessStepType intStep = ProcessStepType.None;
+            int retVal = 0;
+
+
+            if (step == ProcessStepType.Login || intCurrentStep == 0)
+            {
+                //(int)ProcessStepType.None
+                step = ProcessStepType.Emp_attn;
+                
+            }
+            else
+            {
+                if (step != ProcessStepType.None && step != ProcessStepType.Login)
+                {
+                    //intStep = (int)step;
+                }
+                //retVal = objLogin.UpdateProccessStepId(strConn, lngProccessId, (int)intStep, procSts);
+                switch (step)
+                {
+                    case ProcessStepType.Login:
+                        {
+                            intStep = ProcessStepType.Emp_attn;
+                            break;
+                        }
+                    case ProcessStepType.Emp_attn:
+                        {
+                            intStep = ProcessStepType.srvManCallsList;
+                            break;
+                        }
+                    case ProcessStepType.Emp_attn_Start_Break:
+                        {
+                            intStep = ProcessStepType.Emp_attn_Start_Break;
+                            break;
+                        }
+                    case ProcessStepType.srvManCallsList:
+                        {
+                            intStep = ProcessStepType.onMyWay;
+                            break;
+                        }
+                    case ProcessStepType.onMyWay:
+                        {
+                            intStep = ProcessStepType.arrived;
+                            break;
+                        }
+                    case ProcessStepType.arrived:
+                        {
+                            intStep = ProcessStepType.insertRoadCallData;
+                            break;
+                        }
+                    case ProcessStepType.insertRoadCallData:
+                        {
+                            intStep = ProcessStepType.closing_Call;
+                            break;
+                        }
+                    case ProcessStepType.closing_Call:
+                        {
+                            intStep = ProcessStepType.srvManCallsList;
+                            break;
+                        }
+                    default:
+                        {
+                            string msg = "";//string.Format("BindProcessStep -> not valid CallStatusBehaviorType for {{ processId: {0}, statusBehvior: {1} }} ", stepId, procSts);
+                            throw new Exception(msg);
+                        }
+                }
+            }
+
+            retVal = await UpdateStepNew(process, step);
+            //retVal = await UpdateStep(process.Id, step);
+        
+            return await Task.FromResult(step);
+
+        }
+
+
+        private async Task<int> UpdateStepNew(Proc process, ProcessStepType newStep)
+        {
+            //Proc process = _DbContext.Process.First(p => p.Id == processId);
+            //if (process == null)
+            //{
+            //    process = new Proc();
+            //    _DbContext.Process.Add(process);
+            //}
+            process.step = (int)newStep;
+            process.status = 1;
+            await _DbContext.SaveChangesAsync();
+            return await Task.FromResult(process.step);
+
+        }
+        private async Task<int> UpdateStep(int processId, ProcessStepType newStep)
+        {
+                Proc process = _DbContext.Process.First(p => p.Id == processId);
+                if (process == null)
+                {
+                    process = new Proc();
+                    _DbContext.Process.Add(process);
+                }
+                process.step = (int)newStep;
+                process.status = 1;
+                await _DbContext.SaveChangesAsync();
+                return await Task.FromResult(process.step);
+            
+        }
         private int SendCodeSms(string phoneNumber, string message)
         {
             //install Microsoft.Extensions.Configuration.Binder
@@ -569,6 +687,8 @@ namespace Infrastructure.Services.Auth
                 {
                     currentLogin = new LoginLog();
                     _DbContext.LoginLogs.Add(currentLogin);
+                     currentLogin.sessionId = GenerateSessionGuid();
+                     data.SessionId = currentLogin.sessionId;
                 }
 
 
@@ -578,9 +698,7 @@ namespace Infrastructure.Services.Auth
                 currentLogin.creationDate = DateTime.Now;
                 currentLogin.lastUpdateDate = DateTime.Now;
 
-
-            currentLogin.sessionId = GenerateSessionGuid();
-            data.SessionId = currentLogin.sessionId;
+            
             //No AuthenticationQuestions in this app then aleways when we create a new log we will set the status to AuthenticationQuestions
             data.Status = (int)AuthenticationStatusType.AuthenticationCreateLoginRow;
             currentLogin.status = (int)AuthenticationStatusType.AuthenticationCreateLoginRow;

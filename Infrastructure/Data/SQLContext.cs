@@ -1,5 +1,6 @@
 ﻿using Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace Infrastructure.Data
@@ -37,6 +38,9 @@ namespace Infrastructure.Data
         public DbSet<LoginLog> LoginLogs { get; set; }
         public DbSet<LockedSrvMan> LockedSrvMans { get; set; }
         public DbSet<LockedIp> LockedIps { get; set; }
+        public DbSet<Proc> Process { get; set; }
+        public DbSet<StepType> StepType { get; set; }
+
         //we need to do is tell our store context that there's configurations to look for
         //we need to override one of the methods inside the context.
         //this method is responsible for creating that migration

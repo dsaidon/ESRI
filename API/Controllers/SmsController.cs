@@ -1,4 +1,5 @@
-﻿using Core.Dtos.Login;
+﻿using API.Errors;
+using Core.Dtos.Login;
 using Core.Entities;
 using Core.Interfaces.Auth;
 using Core.Models.Auth;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using ShagApi.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -89,6 +91,88 @@ namespace API.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
+
+        [HttpPost]
+        [Route("CheckSmsAuthenticationCode")]
+        public async Task<IActionResult> CheckSmsAuthenticationCode([FromBody] SmsAuth data) //
+
+        {
+            //bool blnShiftmentExists = false;
+            if (data == null)
+            {
+                return NotFound();
+            }
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                   // return BadRequest(ModelState);
+                    return BadRequest(new ApiResponse(400, "Request body is incorrect (empty)."));
+                }
+               
+               
+                    SmsCodeStatusType status;
+                    AuthCode clsAuthCode = new AuthCode(data.srvManNo);
+                    if (data.isAuthenticated)
+                    {
+                        clsAuthCode = await _loginSrv.CheckSmsAuthenticationCode( data);
+                    }
+
+                    if (clsAuthCode.SmsCodeStatusType == (int)SmsCodeStatusType.SentNewCode)
+                    {
+                        status = SmsCodeStatusType.SentNewCode;
+                        return Created("api/login/", clsAuthCode);
+                    }
+                    else
+                    {
+
+                        //if (clsAuthCode.SmsCodeStatusType == (int)SmsCodeStatusType.AuthenticationPassed)
+                        //{
+                        //    //Get SrvMan EmpAttn Info
+                        //    //IsSupplier
+                        //    if (data.IsSupplier)
+                        //    {
+                        //        ShiftSrv shiftSrv = new ShiftSrv(configuration);
+                        //        int intNextStep = 0;
+                        //        clsAuthCode.isSupplier = true;
+                        //        intNextStep = shiftSrv.SetSupplierShiftment(strConn, data.sessionId, (int)ShiftmentTp.enmStartShiftment, data.srvManNo);
+                        //        if (intNextStep > 0)
+                        //        {
+                        //            clsAuthCode.isShiftStarted = true;
+                        //            clsAuthCode.fleetCarNo = data.srvManNo;
+                        //            clsAuthCode.isSupplier = true;
+                        //            clsAuthCode.startShift = DateTime.Now;
+                        //            clsAuthCode.Success = true;
+                        //            clsAuthCode.nextStep = intNextStep;
+                        //            clsAuthCode.isStartBreak = false;
+                        //        }
+                        //        //else
+                        //        //{
+                        //        //    clsAuthCode.Success = false;
+                        //        //}
+                        //    }
+                        //    else
+                        //    {
+                        //        blnShiftmentExists = clsLog.GetSrvManLastShiftment(strConn, ref clsAuthCode);
+                        //        //if (blnShiftmentExists == false)
+                        //        //{
+                        //        //    clsAuthCode.Success = false;
+                        //        //}
+                        //    }
+                        //}
+
+                        return Created("api/login/", clsAuthCode);
+                    }
+               
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, "השירות אינו זמין");
+            }
+        }
+
 
 
         private string GetClientIP()

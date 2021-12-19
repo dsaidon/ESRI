@@ -20,6 +20,7 @@ namespace Core.Interfaces.Auth
 
         Task<SrvManLoginDto> ValidateSrvMan(int SrvManId, SrvManLoginDto srvManLoginDto, IAuthService _tokenService, JWTContainerModel JWTSetting);
         //SrvManLoginDto BuildUserAuthObject(SrvMan srvman);
-       // List<SrvManClaim> GetSrvManClaims(int userId, bool IsSupplier);
+        // List<SrvManClaim> GetSrvManClaims(int userId, bool IsSupplier);
+        Task<AuthCode> CheckSmsAuthenticationCode(SmsAuth data);
     }
 }
